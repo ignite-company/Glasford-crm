@@ -106,7 +106,7 @@ function pageMeta(){return {home:["Today","See what needs attention."],leads:["L
 function shell(content){
  var due=tasks().filter(function(t){return t.due<=dayDate(0);}).length;
  return '<div class="shell"><div class="workspace">'
- +'<header class="topbar"><div class="top-brand"><div class="logo-mark">'+icon("tree",25)+'</div><div><strong>GLASFORD TREE TRIMMING</strong><span>COMMAND CENTER</span></div></div></header>'
+ +'<header class="topbar"><div class="top-brand"><img class="logo-mark" src="https://assets.cdn.filesafe.space/bF1dT8IAVuvat84LkAVe/media/6ae0bab4c62ddbd638d94b5b.png" alt="Glasford Tree Trimming logo" style="object-fit:contain;background:transparent;box-shadow:none" /><div><strong>GLASFORD TREE TRIMMING</strong><span>COMMAND CENTER</span></div></div></header>'
  +'<main class="main" id="main-content">'+notice()+content+'</main>'
  +'</div><nav class="bottom-dock" aria-label="Main navigation">'
  +navItem("home","Home","house")+navItem("leads","Leads","users")+navItem("calendar","Calendar","calendar")
