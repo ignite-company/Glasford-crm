@@ -117,24 +117,57 @@ function notice(){return '<div class="preview-notice"><div>'+icon("leaf",16)+' &
 function header(eyebrow,title,desc,actions){return '<div class="intro"><div><div class="eyebrow">'+esc(eyebrow)+'</div><h1>'+esc(title)+'</h1><p>'+esc(desc)+'</p></div><div class="actions">'+(actions||"")+'</div></div>';}
 function metric(label,value,foot,ic){return '<div class="metric"><div class="metric-top"><div class="metric-label">'+label+'</div><div class="metric-icon">'+icon(ic,19)+'</div></div><div class="metric-value">'+value+'</div><div class="metric-foot">'+foot+'</div></div>';}
 function identity(name,detail){return '<div class="identity"><div class="lead-avatar">'+esc(initials(name))+'</div><div style="min-width:0"><div class="identity-main">'+esc(name)+'</div><div class="identity-sub">'+esc(detail||"")+'</div></div></div>';}
+
 function home(){
- var openLeads=db.leads.filter(function(l){return !["Won","Lost"].includes(l.stage);}).length;
- var openEst=db.estimates.filter(function(e){return e.status==="Sent";});
- var collected=db.payments.reduce(function(s,p){return s+Number(p.amount||0);},0);
- var upcoming=db.jobs.filter(function(j){return ["Scheduled","In progress"].includes(j.status);}).sort(function(a,b){return (a.date||"9999").localeCompare(b.date||"9999");});
- var due=tasks().filter(function(t){return t.due<=dayDate(0);});
- var recent=db.leads.slice().sort(function(a,b){return (b.created||"").localeCompare(a.created||"");}).slice(0,5);
- return header("Business overview","Your business at a glance.","Here's a clear picture of your leads, estimates, scheduled jobs, and cash collected.",btn('data-modal="lead"',icon("plus",15)+" New lead","btn-primary"))
- +'<div class="metrics">'+metric("Active leads",num(openLeads),"Across your open pipeline","users")+metric("Open estimates",dollars(openEst.reduce(function(s,e){return s+Number(e.amount||0);},0)),num(openEst.length)+" sent and awaiting a decision","file")+metric("Upcoming / active jobs",num(upcoming.length),"Scheduled or in progress","calendar")+metric("Money collected",dollars(collected),"Recorded payments only, not quotes","dollar")+'</div>'
- +'<div class="section-grid"><section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Recent leads</div><div class="card-sub">Who reached out and where each customer stands</div></div><button class="text-link" data-page="leads">All leads '+icon("arrow",18)+'</button></div>'
- +(recent.length?'<div class="mini-list">'+recent.map(function(l){return '<div class="mini-row home-lead-row"><div>'+identity(l.name,l.service||"Tree care inquiry")+'</div><div class="home-lead-actions">'+badge(l.stage)+btn('data-lead="'+esc(l.id)+'"',"View lead "+icon("chevron",16),"btn-sm")+'</div></div>';}).join("")+'</div>':empty("No leads yet","New customer inquiries will appear here.","users")) +'</div></section><section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Follow-ups to handle</div><div class="card-sub">Keep every customer conversation moving</div></div><button class="text-link" data-page="followups">View all '+icon("arrow",14)+'</button></div>'
- +(due.length?'<div class="mini-list">'+due.slice(0,4).map(function(t){return '<div class="mini-row"><div>'+identity(t.lead.name,t.step.channel+' · Day '+t.step.day)+'</div><div class="right-meta"><span class="pill warn">'+(t.due<dayDate(0)?"Overdue":"Due today")+'</span><small>'+dateFmt(t.due,{month:"short",day:"numeric"})+'</small></div></div>';}).join("")+'</div>':empty("You're all caught up","New unanswered leads will appear here.","check"))
- +'</section></div><div class="section-grid"><section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Upcoming jobs</div><div class="card-sub">What is coming up on the schedule</div></div><button class="text-link" data-page="jobs">All jobs '+icon("arrow",14)+'</button></div>'
- +(upcoming.length?'<div class="mini-list">'+upcoming.slice(0,4).map(function(j){return '<div class="mini-row"><div>'+identity(j.name,j.service+' · '+dateFmt(j.date,{month:"short",day:"numeric"}))+'</div><div class="right-meta"><strong>'+dollars(j.amount)+'</strong><small>'+esc(j.status)+'</small></div></div>';}).join("")+'</div>':empty("No jobs scheduled","Add a job to see it here.","calendar"))
- +'</section><section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Latest estimates</div><div class="card-sub">Quotes your customers are considering</div></div><button class="text-link" data-page="estimates">See estimates '+icon("arrow",14)+'</button></div>'
- +(db.estimates.length?'<div class="mini-list">'+db.estimates.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"");}).slice(0,4).map(function(e){return '<div class="mini-row"><div>'+identity(e.name,e.service)+'</div><div class="right-meta"><strong>'+dollars(e.amount)+'</strong><small>'+esc(e.status)+'</small></div></div>';}).join("")+'</div>':empty("No estimates yet","Create your first quote.","file"))
- +'</section></div><div class="quick-cards"><button class="card quick-card" data-modal="lead"><div class="quick-icon">'+icon("plus",20)+'</div><div><strong>Add a new lead</strong><p>Never lose a new inquiry</p></div></button><button class="card quick-card" data-modal="estimate"><div class="quick-icon">'+icon("file",20)+'</div><div><strong>Create estimate</strong><p>Track quotes and decisions</p></div></button><button class="card quick-card" data-modal="job"><div class="quick-icon">'+icon("calendar",20)+'</div><div><strong>Schedule a job</strong><p>Keep upcoming work organized</p></div></button></div>';
+ const today=dayDate(0),planned=scheduleFor(today);
+ const pending=db.leads.filter(l=>["New lead","Contacted"].includes(l.stage)).sort((a,b)=>(b.created||"").localeCompare(a.created||""));
+ const due=tasks().filter(t=>t.due<=today);
+ const openEst=db.estimates.filter(e=>e.status==="Sent");
+ const collected=db.payments.reduce((n,p)=>n+Number(p.amount||0),0);
+ const upcoming=db.jobs.filter(j=>["Scheduled","In progress"].includes(j.status)&&j.date>=today).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+ const intro=header("TODAY","Your day, made simple.","Know who to call, where to go, and what needs doing.",btn('data-modal="lead"',icon("plus",17)+" New lead","btn-primary"));
+ const stats='<div class="metrics home-metrics">'+metric("New leads",num(db.leads.filter(l=>l.stage==="New lead").length),"Waiting for first contact","users")+metric("Estimates waiting",num(openEst.length),"Quotes awaiting an answer","file")+metric("Money collected",dollars(collected),"Payments received","dollar")+'</div>';
+ const schedule='<section class="card card-pad"><div class="card-title-row"><div><div class="card-kicker">'+icon("calendar",16)+' '+dateFmt(today,{weekday:"long",month:"long",day:"numeric"})+'</div><div class="card-title">Today’s schedule</div><div class="card-sub">Jobs and estimate visits booked for today</div></div><button class="text-link" data-page="calendar">Calendar '+icon("arrow",17)+'</button></div>'
+ +(planned.length?'<div class="simple-rows">'+planned.map(scheduleRow).join("")+'</div>':empty("Nothing booked today","Open the calendar to see upcoming days.","calendar"))+'</section>';
+ const attention='<section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Needs attention</div><div class="card-sub">The conversations to handle next</div></div><span class="attention-total">'+(pending.length+due.length)+'</span></div>'
+ +(due.length||pending.length?'<div class="simple-rows">'
+ +due.slice(0,3).map(t=>'<button class="simple-row" data-lead="'+esc(t.lead.id)+'"><span class="row-icon amber">'+icon("phone",20)+'</span><span class="row-copy"><strong>'+esc(t.lead.name)+'</strong><small>Follow up · '+esc(t.step.channel)+'</small></span>'+badge(t.due<today?"Overdue":"Due today")+icon("chevron",18)+'</button>').join("")
+ +pending.slice(0,3).map(l=>'<button class="simple-row" data-lead="'+esc(l.id)+'"><span class="row-icon">'+icon("users",20)+'</span><span class="row-copy"><strong>'+esc(l.name)+'</strong><small>'+esc(l.service||"Tree service")+'</small></span>'+badge(l.stage)+icon("chevron",18)+'</button>').join("")+'</div>':empty("All caught up","New leads and follow-ups will show here.","check"))
+ +'<button class="wide-quiet-action" data-page="leads">See all leads '+icon("chevron",17)+'</button></section>';
+ const jobs='<section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Upcoming jobs</div><div class="card-sub">Where the crew is heading next</div></div><button class="text-link" data-page="calendar">Schedule '+icon("arrow",17)+'</button></div>'
+ +(upcoming.length?'<div class="simple-rows">'+upcoming.slice(0,4).map(j=>'<button class="simple-row" data-job="'+esc(j.id)+'"><span class="row-icon">'+icon("tree",20)+'</span><span class="row-copy"><strong>'+esc(j.name)+'</strong><small>'+dateFmt(j.date,{weekday:"short",month:"short",day:"numeric"})+(j.time?' · '+timeFmt(j.time):"")+' · '+esc(j.service)+'</small></span>'+icon("chevron",18)+'</button>').join("")+'</div>':empty("No upcoming jobs","Scheduled work appears here.","calendar"))+'</section>';
+ const quotes='<section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Estimates waiting</div><div class="card-sub">Quotes that need a customer response</div></div><button class="text-link" data-page="estimates">Estimates '+icon("arrow",17)+'</button></div>'
+ +(openEst.length?'<div class="simple-rows">'+openEst.slice(0,4).map(e=>'<button class="simple-row" data-estimate="'+esc(e.id)+'"><span class="row-icon">'+icon("file",20)+'</span><span class="row-copy"><strong>'+esc(e.name)+'</strong><small>'+esc(e.service)+'</small></span><span class="row-value">'+dollars(e.amount)+'</span>'+icon("chevron",18)+'</button>').join("")+'</div>':empty("No quotes waiting","Sent estimates will show here.","check"))+'</section>';
+ return intro+stats+'<div class="dashboard-grid">'+schedule+attention+'</div><div class="dashboard-grid">'+jobs+quotes+'</div><div class="workspace-footer"><span>Glasford Tree Trimming</span><button data-page="settings">'+icon("settings",16)+' Workspace settings</button></div>';
 }
+
+
+function scheduleFor(day){
+ var out=[];
+ db.jobs.forEach(function(j){if(j.date===day&&j.status!=="Cancelled")out.push({kind:"job",id:j.id,name:j.name,service:j.service,address:j.address||"",time:j.time||"",crew:j.crew||"",status:j.status});});
+ db.estimates.forEach(function(e){if(e.visitDate===day&&e.status!=="Declined"){var l=leadBy(e.leadId);out.push({kind:"estimate",id:e.id,name:e.name,service:e.service,address:l?.address||"",time:e.visitTime||"",crew:e.assignedCrew||"",status:e.status});}});
+ return out.sort(function(a,b){return (a.time||"99:99").localeCompare(b.time||"99:99")||a.name.localeCompare(b.name);});
+}
+function scheduleRow(ev){
+ return '<button class="simple-row schedule-row" data-'+(ev.kind==="job"?"job":"estimate")+'="'+esc(ev.id)+'"><span class="schedule-time">'+(ev.time?timeFmt(ev.time):"Any time")+'</span><span class="row-icon '+(ev.kind==="estimate"?"light":"")+'">'+icon(ev.kind==="estimate"?"file":"tree",20)+'</span><span class="row-copy"><strong>'+esc(ev.name)+'</strong><small>'+esc(ev.kind==="estimate"?"Estimate visit":"Job")+' · '+esc(ev.service)+'</small>'+(ev.address?'<small>'+esc(ev.address)+'</small>':"")+(ev.crew?'<small>Assigned: '+esc(ev.crew)+'</small>':"")+'</span>'+icon("chevron",18)+'</button>';
+}
+function calendar(){
+ var chosen=ui.calendarDay||dayDate(0),base=new Date(chosen+"T12:00:00"),yr=base.getFullYear(),mo=base.getMonth();
+ var first=new Date(yr,mo,1),offset=first.getDay(),days=new Date(yr,mo+1,0).getDate(),total=Math.ceil((offset+days)/7)*7,cells=[];
+ var selected=scheduleFor(chosen),today=dayDate(0);
+ for(var i=0;i<total;i++){
+  var date=new Date(yr,mo,1-offset+i),key=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0"),events=scheduleFor(key);
+  cells.push('<button class="calendar-cell '+(date.getMonth()!==mo?"other-month ":"")+(key===today?"is-today ":"")+(key===chosen?"selected":"")+'" data-calendar-day="'+key+'" aria-label="'+dateFmt(key,{weekday:"long",month:"long",day:"numeric"})+' · '+events.length+' scheduled"><span>'+date.getDate()+'</span><span class="calendar-markers">'+events.slice(0,3).map(function(e){return '<i class="'+(e.kind==="job"?"work-dot":"estimate-dot")+'"></i>';}).join("")+'</span></button>');
+ }
+ return header("TEAM SCHEDULE","Your calendar.","Tap a date to see jobs, on-site estimates, locations, and assigned crew.",btn("data-calendar-today","Today","btn-soft"))
+ +'<div class="calendar-layout"><section class="card calendar-panel"><div class="calendar-controls"><div class="calendar-month">'+base.toLocaleDateString("en-US",{month:"long",year:"numeric"})+'</div><div class="calendar-buttons"><button class="calendar-arrow previous" data-calendar-shift="-1" aria-label="Previous month">'+icon("chevron",18)+'</button><button class="calendar-arrow next" data-calendar-shift="1" aria-label="Next month">'+icon("chevron",18)+'</button></div></div>'
+ +'<div class="calendar-weekdays">'+["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(function(w){return '<span>'+w+'</span>';}).join("")+'</div><div class="calendar-days">'+cells.join("")+'</div>'
+ +'<div class="calendar-legend"><span><i class="work-dot"></i> Jobs</span><span><i class="estimate-dot"></i> Estimates</span></div></section>'
+ +'<section class="card card-pad calendar-agenda"><div class="card-title-row"><div><div class="card-kicker">SELECTED DAY</div><div class="card-title">'+dateFmt(chosen,{weekday:"long",month:"long",day:"numeric"})+'</div><div class="card-sub">'+selected.length+' scheduled '+(selected.length===1?"appointment":"appointments")+'</div></div></div>'
+ +(selected.length?'<div class="simple-rows">'+selected.map(scheduleRow).join("")+'</div>':empty("No work scheduled","You can add a job or schedule an estimate visit.","calendar"))
+ +'<div class="calendar-add"><button class="btn btn-primary" data-modal="job" data-prefill-date="'+chosen+'">'+icon("plus",17)+' Add job</button><button class="btn btn-soft" data-modal="estimate" data-prefill-date="'+chosen+'">'+icon("plus",17)+' Estimate visit</button></div></section></div>';
+}
+
 function leads(){
  var q=ui.query.toLowerCase();
  var list=db.leads.filter(function(l){return [l.name,l.phone,l.service,l.address,l.source].join(" ").toLowerCase().includes(q);});
