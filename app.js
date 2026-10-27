@@ -5,7 +5,7 @@
 const STORE="glasford_command_center_v1";
 const STAGES=["New lead","Contacted","Follow-up","Estimate scheduled","Estimate sent","Won","Lost"];
 const JOB_STATUS=["Scheduled","In progress","Completed","Paid","Cancelled"];
-const EST_STATUS=["Draft","Sent","Accepted","Declined"];
+const EST_STATUS=["Draft","Visit scheduled","Sent","Accepted","Declined"];
 const CADENCE=[
  {day:0,title:"Immediate response",channel:"Call + text",detail:"Call promptly, then send a friendly acknowledgment.",message:"Hi {name}, this is Glasford Tree Trimming. Thanks for reaching out about your tree service. We'd love to help. Is there a good time to talk?"},
  {day:2,title:"Personal check-in",channel:"Phone call",detail:"Try again at a different time of day.",message:"Hi {name}, just following up on your tree service request. Happy to answer questions or arrange an estimate."},
@@ -51,6 +51,7 @@ function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){retur
 function uid(prefix){return prefix+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,7);}
 function dayDate(d){var x=new Date();x.setHours(12,0,0,0);x.setDate(x.getDate()+(d||0));return x.toISOString().slice(0,10);}
 function addDays(start,n){var x=new Date((start||dayDate(0))+"T12:00:00");x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);}
+function timeFmt(t){if(!t)return "Time not set";var p=t.split(":"),h=Number(p[0]);if(!Number.isFinite(h))return t;return (h%12||12)+":"+(p[1]||"00")+" "+(h>=12?"PM":"AM");}
 function dateFmt(v,opts){if(!v)return "Not set";var t=new Date(v.length===10?v+"T12:00:00":v);if(isNaN(t))return "Not set";return t.toLocaleDateString("en-US",opts||{month:"short",day:"numeric",year:"numeric"});}
 function dollars(n){return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(Number(n)||0);}
 function num(n){return (Number(n)||0).toLocaleString("en-US");}
@@ -65,16 +66,24 @@ function newDemo(){
   {id:"l5",name:"Riley Parker",phone:"(555) 010-1405",email:"",address:"Example property, North NJ",service:"Storm cleanup",source:"Referral",stage:"Won",created:dayDate(-20),notes:"Sample customer.",followStart:"",followPaused:true,steps:[]}
  ],estimates:[
   {id:"e1",leadId:"l3",name:"Avery Collins",service:"Stump grinding",amount:1850,status:"Sent",date:dayDate(-2),notes:"Sample estimate"},
-  {id:"e2",leadId:"l4",name:"Casey Walker",service:"Tree pruning",amount:1450,status:"Draft",date:dayDate(0),notes:"Sample estimate"},
+  {id:"e2",leadId:"l4",name:"Casey Walker",service:"Tree pruning",amount:1450,status:"Draft",date:dayDate(0),notes:"Sample estimate",visitDate:dayDate(2),visitTime:"10:00",assignedCrew:"Glasford team"},
   {id:"e3",leadId:"l5",name:"Riley Parker",service:"Storm cleanup",amount:3200,status:"Accepted",date:dayDate(-14),notes:"Sample estimate"}
  ],jobs:[
   {id:"j1",leadId:"l5",name:"Riley Parker",service:"Storm cleanup",address:"Example property, North NJ",amount:3200,date:dayDate(-3),status:"Completed",notes:"Sample job"},
-  {id:"j2",leadId:"l4",name:"Casey Walker",service:"Tree pruning",address:"Example property, North NJ",amount:1450,date:dayDate(3),status:"Scheduled",notes:"Sample job"}
+  {id:"j2",leadId:"l4",name:"Casey Walker",service:"Tree pruning",address:"Example property, North NJ",amount:1450,date:dayDate(3),time:"08:00",crew:"Crew A",status:"Scheduled",notes:"Sample job"}
  ],payments:[{id:"p1",jobId:"j1",amount:1600,date:dayDate(-2),note:"Sample payment"}]};
 }
-function load(){try{var saved=JSON.parse(localStorage.getItem(STORE));if(saved&&Array.isArray(saved.leads)&&Array.isArray(saved.jobs)&&Array.isArray(saved.estimates)&&Array.isArray(saved.payments))return saved;}catch(e){}return newDemo();}
+function load(){try{var saved=JSON.parse(localStorage.getItem(STORE));if(saved&&Array.isArray(saved.leads)&&Array.isArray(saved.jobs)&&Array.isArray(saved.estimates)&&Array.isArray(saved.payments)){
+  if(saved.demo){
+   var sampleEstimate=saved.estimates.find(function(e){return e.id==="e2"&&e.name==="Casey Walker";});
+   if(sampleEstimate&&!sampleEstimate.visitDate){sampleEstimate.visitDate=addDays(sampleEstimate.date||dayDate(0),2);sampleEstimate.visitTime="10:00";sampleEstimate.assignedCrew="Glasford team";}
+   var sampleJob=saved.jobs.find(function(j){return j.id==="j2"&&j.name==="Casey Walker";});
+   if(sampleJob&&!sampleJob.time){sampleJob.time="08:00";sampleJob.crew="Crew A";}
+  }
+  return saved;
+ }}catch(e){}return newDemo();}
 var db=load();
-var ui={page:"home",query:"",modal:"",id:"",mobile:false,leadFilter:"All"};
+var ui={page:"home",query:"",modal:"",id:"",mobile:false,leadFilter:"All",calendarDay:dayDate(0),datePrefill:""};
 function save(){localStorage.setItem(STORE,JSON.stringify(db));render();}
 function leadBy(id){return db.leads.find(function(l){return l.id===id;});}
 function jobBy(id){return db.jobs.find(function(j){return j.id===id;});}
@@ -92,7 +101,7 @@ function navItem(page,label,ic,count){
  +'<span class="dock-icon">'+icon(ic,23)+(count>0?'<span class="dock-count">'+count+'</span>':'')+'</span>'
  +'<span class="dock-label">'+esc(label)+'</span></button>';
 }
-function pageMeta(){return {home:["Overview","Your tree care business, all in one place."],leads:["Leads pipeline","Move every opportunity from first call to booked job."],followups:["Follow-up system","Stay top of mind until the customer is ready."],estimates:["Estimates","Know exactly what has been quoted and what is still open."],jobs:["Jobs & payments","Track every job, upcoming work, and payments collected."],settings:["Workspace settings","Save and transfer your local preview data."]}[ui.page]||["Overview",""];}
+function pageMeta(){return {home:["Today","See what needs attention."],leads:["Leads","Every customer inquiry."],calendar:["Calendar","Today and upcoming appointments."],followups:["Follow-ups","Never lose a customer."],estimates:["Estimates","Keep track of quotes."],jobs:["Jobs","Work and payments."],settings:["Settings","Backup and local data."]}[ui.page]||["Today",""];}
 
 function shell(content){
  var due=tasks().filter(function(t){return t.due<=dayDate(0);}).length;
@@ -100,8 +109,8 @@ function shell(content){
  +'<header class="topbar"><div class="top-brand"><div class="logo-mark">'+icon("tree",25)+'</div><div><strong>GLASFORD TREE TRIMMING</strong><span>COMMAND CENTER</span></div></div></header>'
  +'<main class="main" id="main-content">'+notice()+content+'</main>'
  +'</div><nav class="bottom-dock" aria-label="Main navigation">'
- +navItem("home","Home","house")+navItem("leads","Leads","board")+navItem("followups","Follow-ups","clock",due)
- +navItem("estimates","Estimates","file")+navItem("jobs","Jobs","calendar")+navItem("settings","Settings","settings")
+ +navItem("home","Home","house")+navItem("leads","Leads","users")+navItem("calendar","Calendar","calendar")
+ +navItem("followups","Follow-ups","clock",due)+navItem("estimates","Estimates","file")+navItem("jobs","Jobs","clipboard")
  +'</nav></div>'+modal();
 }
 function notice(){return '<div class="preview-notice"><div>'+icon("leaf",16)+' &nbsp;<strong>'+(db.demo?"Sample workspace":"Local preview")+'.</strong> '+(db.demo?"This workspace contains fictional example records. Clear them before adding real customer information. ":"")+'Entries are saved in this browser only. Automated calls and texts are not connected.</div>'+(db.demo?'<button data-clear-demo>Clear workspace</button>':'<button data-page="settings">Backup / import data</button>')+'</div>';}
