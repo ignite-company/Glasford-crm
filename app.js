@@ -219,7 +219,7 @@ function settings(){
  +'<section class="card settings-box"><h3>Restore a backup</h3><p>Import a JSON backup you previously exported from this workspace. This replaces the data currently in this browser.</p><div class="field"><label for="json-file">Select backup JSON</label><input type="file" id="json-file" accept=".json,application/json" style="max-width:340px"/></div></section>'
  +'<section class="card settings-box"><h3>Start with an empty workspace</h3><p>Remove all demo records. This cannot be undone unless you exported a backup.</p>'+btn("data-clear-demo",icon("refresh",15)+" Clear workspace","btn-danger")+'</section>';
 }
-function input(name,label,value,type,opts){return '<div class="field '+(opts&&opts.wide?"wide":"")+'"><label for="fld-'+name+'">'+esc(label)+'</label><input id="fld-'+name+'" name="'+name+'" type="'+(type||"text")+'" value="'+esc(value||"")+'" '+(opts&&opts.required?"required":"")+' '+(opts&&opts.min!=null?'min="'+opts.min+'"':"")+' placeholder="'+esc(opts&&opts.placeholder||"")+'"/></div>';}
+function input(name,label,value,type,opts){return '<div class="field '+(opts&&opts.wide?"wide":"")+'"><label for="fld-'+name+'">'+esc(label)+'</label><input id="fld-'+name+'" name="'+name+'" class="'+(type==="date"||type==="time"?"native-date-input":"")+'" type="'+(type||"text")+'" value="'+esc(value||"")+'" '+(opts&&opts.required?"required":"")+' '+(opts&&opts.min!=null?'min="'+opts.min+'"':"")+' placeholder="'+esc(opts&&opts.placeholder||"")+'"/></div>';}
 function pick(name,label,value,options,wide){return '<div class="field '+(wide?"wide":"")+'"><label for="fld-'+name+'">'+esc(label)+'</label><select name="'+name+'" id="fld-'+name+'">'+options.map(function(o){var v=typeof o==="string"?o:o[0],l=typeof o==="string"?o:o[1];return '<option value="'+esc(v)+'" '+(String(v)===String(value)?"selected":"")+'>'+esc(l)+'</option>';}).join("")+'</select></div>';}
 function notes(value){return '<div class="field wide"><label>Notes</label><textarea name="notes" placeholder="Add job details, customer requests, or next steps...">'+esc(value||"")+'</textarea></div>';}
 function leadOptions(selected){return [["","No linked lead"]].concat(db.leads.map(function(l){return [l.id,l.name+" · "+(l.service||"Tree service")];}));}
@@ -248,13 +248,13 @@ function modal(){
   var e=db.estimates.find(function(v){return v.id===ui.id;})||{};
   var selectedLead=leadBy(e.leadId||ui.prelead||"");
   head=ui.id?"Edit estimate":"New estimate";sub="Record an amount and its current status.";
-  body='<form id="estimate-form"><div class="field-grid">'+pick("leadId","Linked lead",e.leadId||ui.prelead||"",leadOptions(),true)+input("name","Customer name",e.name||selectedLead?.name,"text",{required:true,wide:true})+input("service","Work being quoted",e.service||selectedLead?.service,"text",{required:true,wide:true})+input("amount","Estimate value ($)",e.amount||"","number",{required:true,min:0})+input("date","Estimate date",e.date||dayDate(0),"date")+pick("status","Status",e.status||"Draft",EST_STATUS,true)+notes(e.notes)+'</div></form>';
+  body='<form id="estimate-form"><div class="field-grid">'+pick("leadId","Linked lead",e.leadId||ui.prelead||"",leadOptions(),true)+input("name","Customer name",e.name||selectedLead?.name,"text",{required:true,wide:true})+input("service","Work being quoted",e.service||selectedLead?.service,"text",{required:true,wide:true})+input("amount","Estimate value ($)",e.amount||"","number",{required:true,min:0})+pick("status","Estimate status",e.status||(ui.datePrefill?"Visit scheduled":"Draft"),EST_STATUS,true)+input("date","Date quote prepared",e.date||dayDate(0),"date")+input("visitDate","On-site estimate date",e.visitDate||ui.datePrefill||"","date")+input("visitTime","Estimate arrival time",e.visitTime||"","time")+input("assignedCrew","Assigned estimator",e.assignedCrew||"","text",{wide:true,placeholder:"Who is going to the property?"})+notes(e.notes)+'</div></form>';
   foot=(ui.id?btn('data-delete-estimate="'+esc(ui.id)+'"',"Delete","btn-danger"):"")+btn("data-close","Cancel","")+'<button type="submit" form="estimate-form" class="btn btn-primary">Save estimate</button>';
   if(ui.id&&e.status==="Accepted"&&!db.jobs.some(function(j){return j.estimateId===e.id;}))body+='<div class="sequence-explain" style="margin-top:16px"><div>'+icon("check",19)+'</div><div><strong>Estimate accepted</strong><p>Create a job below when this work is ready to be scheduled.</p>'+btn('data-create-job-from-estimate="'+esc(e.id)+'"',"Create job","btn-sm btn-soft")+'</div></div>';
  }else if(ui.modal==="job"){
   var j=jobBy(ui.id)||{};var linked=leadBy(j.leadId||ui.prelead||"");
   head=ui.id?"Edit job":"Add a job";sub="Schedule work and keep track of total job value.";
-  body='<form id="job-form"><div class="field-grid">'+pick("leadId","Linked lead",j.leadId||ui.prelead||"",leadOptions(),true)+input("name","Customer name",j.name||linked?.name,"text",{required:true,wide:true})+input("service","Type of work",j.service||linked?.service,"text",{required:true,wide:true})+input("address","Job address",j.address||linked?.address,"text",{wide:true})+input("amount","Job total ($)",j.amount||"","number",{required:true,min:0})+input("date","Scheduled date",j.date||dayDate(1),"date")+pick("status","Job status",j.status||"Scheduled",JOB_STATUS,true)+notes(j.notes)+'</div></form>';
+  body='<form id="job-form"><div class="field-grid">'+pick("leadId","Linked lead",j.leadId||ui.prelead||"",leadOptions(),true)+input("name","Customer name",j.name||linked?.name,"text",{required:true,wide:true})+input("service","Type of work",j.service||linked?.service,"text",{required:true,wide:true})+input("address","Job address",j.address||linked?.address,"text",{wide:true})+input("amount","Job total ($)",j.amount||"","number",{required:true,min:0})+input("date","Job date",j.date||ui.datePrefill||dayDate(1),"date")+input("time","Arrival time",j.time||"","time")+input("crew","Assigned crew",j.crew||"","text",{wide:true,placeholder:"Crew name or team members"})+pick("status","Job status",j.status||"Scheduled",JOB_STATUS,true)+notes(j.notes)+'</div></form>';
   if(ui.id)body+='<div class="divider"></div><div class="detail-section">Payments collected for this job</div><div style="font-size:25px;font-weight:850;color:var(--green)">'+dollars(paid(j.id))+' <span style="font-size:12px;color:#879b8d;font-weight:600">of '+dollars(j.amount)+'</span></div><div class="progress-track" style="margin-bottom:18px"><div class="progress-fill" style="width:'+Math.min(100,Number(j.amount)>0?paid(j.id)/Number(j.amount)*100:0)+'%"></div></div>'+btn('data-modal="payment" data-jobref="'+esc(j.id)+'"',icon("plus",14)+" Record payment","btn-soft")+'<div class="mini-list" style="margin-top:15px">'+db.payments.filter(function(p){return p.jobId===j.id;}).map(function(p){return '<div class="mini-row"><div><strong>'+dateFmt(p.date)+'</strong><div class="identity-sub">'+esc(p.note||"Payment")+'</div></div><div class="right-meta"><strong>'+dollars(p.amount)+'</strong><div style="margin-top:5px">'+btn('data-delete-payment="'+esc(p.id)+'"',"Remove","btn-sm btn-danger")+'</div></div></div>';}).join("")+'</div>';
   foot=(ui.id?btn('data-delete-job="'+esc(ui.id)+'"',"Delete","btn-danger"):"")+btn("data-close","Cancel","")+'<button type="submit" form="job-form" class="btn btn-primary">Save job</button>';
  }else if(ui.modal==="payment"){
@@ -266,7 +266,7 @@ function modal(){
  return '<div class="modal-overlay" data-overlay><div class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><div class="drawer-header"><div><h2 id="drawer-title">'+esc(head)+'</h2><p>'+esc(sub)+'</p></div><button class="close-btn" aria-label="Close" data-close>'+icon("x",18)+'</button></div><div class="drawer-body">'+body+'</div><div class="drawer-footer">'+foot+'</div></div></div>';
 }
 function render(){
- var html={home:home,leads:leads,followups:followups,estimates:estimates,jobs:jobs,settings:settings};
+ var html={home:home,leads:leads,calendar:calendar,followups:followups,estimates:estimates,jobs:jobs,settings:settings};
  document.getElementById("app").innerHTML=shell((html[ui.page]||home)());
  document.body.style.overflow=ui.modal?"hidden":"";
 }
@@ -276,11 +276,14 @@ function contact(l,outcome){if(outcome==="noanswer"){l.stage="Follow-up";if(!l.f
 function getForm(form){var obj={};new FormData(form).forEach(function(v,k){obj[k]=String(v).trim();});return obj;}
 function download(name,text,type){var blob=new Blob([text],{type:type||"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(url);},2000);}
 document.addEventListener("click",function(ev){
- var e=ev.target,el=e.closest("[data-page]");if(el){ui.page=el.dataset.page;ui.mobile=false;ui.query="";ui.modal="";render();return;}
+ var e=ev.target,el=e.closest("[data-page]");if(el){ui.page=el.dataset.page;ui.mobile=false;ui.query="";ui.modal="";ui.datePrefill="";render();if(typeof window!=="undefined"&&window.scrollTo)window.scrollTo(0,0);return;}
+ el=e.closest("[data-calendar-day]");if(el){ui.calendarDay=el.dataset.calendarDay;render();return;}
+ el=e.closest("[data-calendar-shift]");if(el){var d=new Date(ui.calendarDay+"T12:00:00"),c=new Date(d.getFullYear(),d.getMonth()+Number(el.dataset.calendarShift),1);ui.calendarDay=c.getFullYear()+"-"+String(c.getMonth()+1).padStart(2,"0")+"-01";render();return;}
+ if(e.closest("[data-calendar-today]")){ui.calendarDay=dayDate(0);render();return;}
  if(e.closest("[data-menu]")){ui.mobile=!ui.mobile;render();return;}
  if(e.closest("[data-close-menu]")){ui.mobile=false;render();return;}
  if(e.closest("[data-close]")||(e.matches("[data-overlay]"))){ui.modal="";ui.id="";ui.prelead="";ui.jobref="";render();return;}
- el=e.closest("[data-modal]");if(el){ui.modal=el.dataset.modal;ui.id="";ui.prelead=el.dataset.prelead||"";ui.jobref=el.dataset.jobref||"";render();return;}
+ el=e.closest("[data-modal]");if(el){ui.modal=el.dataset.modal;ui.id="";ui.prelead=el.dataset.prelead||"";ui.jobref=el.dataset.jobref||"";ui.datePrefill=el.dataset.prefillDate||"";render();return;}
  el=e.closest("[data-lead]");if(el){ui.id=el.dataset.lead;ui.modal="lead-detail";render();return;}
  el=e.closest("[data-edit-lead]");if(el){ui.id=el.dataset.editLead;ui.modal="lead";render();return;}
  el=e.closest("[data-estimate]");if(el){ui.id=el.dataset.estimate;ui.modal="estimate";render();return;}
@@ -314,20 +317,23 @@ document.addEventListener("submit",function(ev){
  }
  if(form.id==="estimate-form"){
   var a=Number(v.amount);if(!validAmount(a)||!v.name||!v.service){toast("Check the amount and required fields");return;}
+  if(v.status==="Visit scheduled"&&!v.visitDate){toast("Choose the on-site estimate date");return;}
   var e=db.estimates.find(function(x){return x.id===ui.id;});
-  if(e)Object.assign(e,{leadId:v.leadId,name:v.name,service:v.service,amount:a,date:v.date,status:v.status,notes:v.notes});
-  else db.estimates.unshift({id:uid("e"),leadId:v.leadId,name:v.name,service:v.service,amount:a,date:v.date,status:v.status,notes:v.notes});
-  var lead=leadBy(v.leadId);if(lead&&v.status==="Sent"&&lead.stage!=="Won"){lead.stage="Estimate sent";lead.followPaused=true;}
+  if(e)Object.assign(e,{leadId:v.leadId,name:v.name,service:v.service,amount:a,date:v.date,status:v.status,visitDate:v.visitDate||"",visitTime:v.visitTime||"",assignedCrew:v.assignedCrew||"",notes:v.notes});
+  else db.estimates.unshift({id:uid("e"),leadId:v.leadId,name:v.name,service:v.service,amount:a,date:v.date,status:v.status,visitDate:v.visitDate||"",visitTime:v.visitTime||"",assignedCrew:v.assignedCrew||"",notes:v.notes});
+  var lead=leadBy(v.leadId);if(lead&&v.status==="Visit scheduled"&&lead.stage!=="Won"){lead.stage="Estimate scheduled";lead.followPaused=true;}
+  if(lead&&v.status==="Sent"&&lead.stage!=="Won"){lead.stage="Estimate sent";lead.followPaused=true;}
   if(lead&&v.status==="Accepted"){lead.stage="Won";lead.followPaused=true;}
   ui.modal="";ui.id="";save();toast("Estimate saved");return;
  }
  if(form.id==="job-form"){
   var a=Number(v.amount);if(!validAmount(a)||!v.name||!v.service){toast("Check the amount and required fields");return;}
   var j=jobBy(ui.id);
+  if(!v.date){toast("Choose the job date");return;}
   if(j&&a<paid(j.id)){toast("Job total cannot be lower than payments already received");return;}
   if(v.status==="Paid"&&(!j||paid(j.id)<a)){toast("Record full payment before marking a job paid");return;}
-  if(j)Object.assign(j,{leadId:v.leadId,name:v.name,service:v.service,address:v.address,amount:a,date:v.date,status:v.status,notes:v.notes});
-  else db.jobs.unshift({id:uid("j"),leadId:v.leadId,name:v.name,service:v.service,address:v.address,amount:a,date:v.date,status:v.status,notes:v.notes});
+  if(j)Object.assign(j,{leadId:v.leadId,name:v.name,service:v.service,address:v.address,amount:a,date:v.date,time:v.time||"",crew:v.crew||"",status:v.status,notes:v.notes});
+  else db.jobs.unshift({id:uid("j"),leadId:v.leadId,name:v.name,service:v.service,address:v.address,amount:a,date:v.date,time:v.time||"",crew:v.crew||"",status:v.status,notes:v.notes});
   ui.modal="";ui.id="";save();toast("Job saved");return;
  }
  if(form.id==="payment-form"){
