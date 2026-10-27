@@ -412,3 +412,12 @@ html,body{width:100%;max-width:100%;overflow-x:clip}
  .toolbar{grid-template-columns:1fr}
  .toolbar-right,.lead-filter{width:100%;max-width:100%}
 }
+
+/* Calendar job actions */
+.schedule-item{display:flex;flex-direction:column;gap:0;min-width:0;border-top:1px solid #e9efea;padding-bottom:9px}
+.schedule-item:first-child{border-top:0}
+.schedule-item .simple-row{border-top:0;min-height:76px}
+.status-action{display:inline-flex;align-items:center;justify-content:center;gap:8px;align-self:flex-end;min-height:40px;padding:8px 14px;background:#e7f2e9;border:1px solid #cae2d0;border-radius:9px;color:#215a3d;font-size:13px;font-weight:800}
+.status-action:hover{background:#cfe8d6}
+.status-action svg{width:16px;height:16px}
+@media(max-width:600px){.status-action{width:100%;align-self:stretch;margin-bottom:6px;font-size:14px}}
