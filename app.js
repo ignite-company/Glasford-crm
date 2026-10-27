@@ -85,18 +85,24 @@ function tasks(){return db.leads.map(function(l){var s=nextStep(l);return s?{lea
 function badge(s){var color=["Paid","Won","Completed","Accepted"].includes(s)?"good":["Lost","Declined","Cancelled"].includes(s)?"bad":["Follow-up","Sent","In progress","Due today"].includes(s)?"warn":["Scheduled","Estimate scheduled"].includes(s)?"blue":"dark";return '<span class="pill '+color+'">'+esc(s)+'</span>';}
 function empty(title,sub,which){return '<div class="empty"><div class="empty-icon">'+icon(which||"leaf",23)+'</div><strong>'+esc(title)+'</strong><p>'+esc(sub||"")+'</p></div>';}
 function btn(action,label,klass){return '<button type="button" class="btn '+(klass||"")+'" '+action+'>'+label+'</button>';}
-function navItem(page,label,ic,count){return '<button class="nav-btn '+(ui.page===page?"active":"")+'" data-page="'+page+'">'+icon(ic,18)+'<span class="nav-label">'+label+'</span>'+(count==null?"":'<span class="nav-count">'+count+'</span>')+'</button>';}
+
+function navItem(page,label,ic,count){
+ const active=ui.page===page;
+ return '<button type="button" class="dock-item '+(active?'active':'')+'" data-page="'+page+'" aria-label="'+esc(label)+'" '+(active?'aria-current="page"':'')+'>'
+ +'<span class="dock-icon">'+icon(ic,23)+(count>0?'<span class="dock-count">'+count+'</span>':'')+'</span>'
+ +'<span class="dock-label">'+esc(label)+'</span></button>';
+}
 function pageMeta(){return {home:["Overview","Your tree care business, all in one place."],leads:["Leads pipeline","Move every opportunity from first call to booked job."],followups:["Follow-up system","Stay top of mind until the customer is ready."],estimates:["Estimates","Know exactly what has been quoted and what is still open."],jobs:["Jobs & payments","Track every job, upcoming work, and payments collected."],settings:["Workspace settings","Save and transfer your local preview data."]}[ui.page]||["Overview",""];}
+
 function shell(content){
- var m=pageMeta(),due=tasks().filter(function(t){return t.due<=dayDate(0);}).length;
- return '<div class="shell"><div class="mobile-shade '+(ui.mobile?"visible":"")+'" data-close-menu></div><aside class="sidebar '+(ui.mobile?"open":"")+'">'
- +'<div class="brand"><div class="logo-mark">'+icon("tree",25)+'</div><div><div class="brand-name">GLASFORD<br>TREE TRIMMING</div><div class="brand-sub">COMMAND CENTER</div></div></div>'
- +'<div class="side-label">Workspace</div><nav class="side-links">'
- +navItem("home","Home","house")+navItem("leads","Leads pipeline","board",db.leads.length)+navItem("followups","Follow-ups","clock",due)+navItem("estimates","Estimates","file",db.estimates.length)+navItem("jobs","Jobs & payments","calendar",db.jobs.length)
- +'</nav><div class="side-label" style="margin-top:29px">Account</div><nav class="side-links">'+navItem("settings","Settings","settings")+'</nav>'
- +'<div class="side-bottom"><div class="managed">Built & managed by</div><div class="ignite">IGNITE <span>CO.</span></div><div class="side-help">A simpler way to keep your pipeline, team, and revenue organized.</div></div></aside>'
- +'<div class="workspace"><header class="topbar"><div class="topbar-left"><button class="mobile-menu" data-menu aria-label="Open navigation">'+icon("menu",20)+'</button><div><div class="breadcrumb">Workspace / '+m[0]+'</div><div class="page-headline">Glasford Command Center</div></div></div><div class="top-actions"><div class="today-tag">'+icon("calendar",15)+dateFmt(dayDate(0),{month:"long",day:"numeric",year:"numeric"})+'</div><div class="avatar">GT</div></div></header>'
- +'<main class="main">'+notice()+content+'</main></div></div>'+modal();
+ var due=tasks().filter(function(t){return t.due<=dayDate(0);}).length;
+ return '<div class="shell"><div class="workspace">'
+ +'<header class="topbar"><div class="top-brand"><div class="logo-mark">'+icon("tree",25)+'</div><div><strong>GLASFORD TREE TRIMMING</strong><span>COMMAND CENTER</span></div></div></header>'
+ +'<main class="main" id="main-content">'+notice()+content+'</main>'
+ +'</div><nav class="bottom-dock" aria-label="Main navigation">'
+ +navItem("home","Home","house")+navItem("leads","Leads","board")+navItem("followups","Follow-ups","clock",due)
+ +navItem("estimates","Estimates","file")+navItem("jobs","Jobs","calendar")+navItem("settings","Settings","settings")
+ +'</nav></div>'+modal();
 }
 function notice(){return '<div class="preview-notice"><div>'+icon("leaf",16)+' &nbsp;<strong>'+(db.demo?"Sample workspace":"Local preview")+'.</strong> '+(db.demo?"This workspace contains fictional example records. Clear them before adding real customer information. ":"")+'Entries are saved in this browser only. Automated calls and texts are not connected.</div>'+(db.demo?'<button data-clear-demo>Clear workspace</button>':'<button data-page="settings">Backup / import data</button>')+'</div>';}
 function header(eyebrow,title,desc,actions){return '<div class="intro"><div><div class="eyebrow">'+esc(eyebrow)+'</div><h1>'+esc(title)+'</h1><p>'+esc(desc)+'</p></div><div class="actions">'+(actions||"")+'</div></div>';}
@@ -108,13 +114,11 @@ function home(){
  var collected=db.payments.reduce(function(s,p){return s+Number(p.amount||0);},0);
  var upcoming=db.jobs.filter(function(j){return ["Scheduled","In progress"].includes(j.status);}).sort(function(a,b){return (a.date||"9999").localeCompare(b.date||"9999");});
  var due=tasks().filter(function(t){return t.due<=dayDate(0);});
- var bars=[["New",db.leads.filter(function(l){return l.stage==="New lead";}).length],["Contacted",db.leads.filter(function(l){return l.stage==="Contacted";}).length],["Follow-up",db.leads.filter(function(l){return l.stage==="Follow-up";}).length],["Estimate",db.leads.filter(function(l){return l.stage.includes("Estimate");}).length],["Won",db.leads.filter(function(l){return l.stage==="Won";}).length]];
- var max=Math.max(1,...bars.map(function(b){return b[1];}));
- return header("Business overview","Good to have everything in one place.","Here's a clear picture of your leads, estimates, scheduled jobs, and cash collected.",btn('data-modal="lead"',icon("plus",15)+" New lead","btn-primary"))
+ var recent=db.leads.slice().sort(function(a,b){return (b.created||"").localeCompare(a.created||"");}).slice(0,5);
+ return header("Business overview","Your business at a glance.","Here's a clear picture of your leads, estimates, scheduled jobs, and cash collected.",btn('data-modal="lead"',icon("plus",15)+" New lead","btn-primary"))
  +'<div class="metrics">'+metric("Active leads",num(openLeads),"Across your open pipeline","users")+metric("Open estimates",dollars(openEst.reduce(function(s,e){return s+Number(e.amount||0);},0)),num(openEst.length)+" sent and awaiting a decision","file")+metric("Upcoming / active jobs",num(upcoming.length),"Scheduled or in progress","calendar")+metric("Money collected",dollars(collected),"Recorded payments only, not quotes","dollar")+'</div>'
- +'<div class="section-grid"><section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Lead pipeline</div><div class="card-sub">Opportunities moving toward a booked job</div></div><button class="text-link" data-page="leads">Open pipeline '+icon("arrow",14)+'</button></div><div class="pipeline-summary">'
- +bars.map(function(b){return '<div class="summary-col" data-page="leads"><div class="summary-bar-wrap"><div class="summary-bar" style="height:'+(b[1]?Math.max(13,Math.round(b[1]/max*112)):5)+'px"></div></div><div class="summary-number">'+b[1]+'</div><div class="summary-label">'+b[0]+'</div></div>';}).join("")
- +'</div></section><section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Follow-ups to handle</div><div class="card-sub">Keep every customer conversation moving</div></div><button class="text-link" data-page="followups">View all '+icon("arrow",14)+'</button></div>'
+ +'<div class="section-grid"><section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Recent leads</div><div class="card-sub">Who reached out and where each customer stands</div></div><button class="text-link" data-page="leads">All leads '+icon("arrow",18)+'</button></div>'
+ +(recent.length?'<div class="mini-list">'+recent.map(function(l){return '<div class="mini-row home-lead-row"><div>'+identity(l.name,l.service||"Tree care inquiry")+'</div><div class="home-lead-actions">'+badge(l.stage)+btn('data-lead="'+esc(l.id)+'"',"View lead "+icon("chevron",16),"btn-sm")+'</div></div>';}).join("")+'</div>':empty("No leads yet","New customer inquiries will appear here.","users")) +'</div></section><section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Follow-ups to handle</div><div class="card-sub">Keep every customer conversation moving</div></div><button class="text-link" data-page="followups">View all '+icon("arrow",14)+'</button></div>'
  +(due.length?'<div class="mini-list">'+due.slice(0,4).map(function(t){return '<div class="mini-row"><div>'+identity(t.lead.name,t.step.channel+' · Day '+t.step.day)+'</div><div class="right-meta"><span class="pill warn">'+(t.due<dayDate(0)?"Overdue":"Due today")+'</span><small>'+dateFmt(t.due,{month:"short",day:"numeric"})+'</small></div></div>';}).join("")+'</div>':empty("You're all caught up","New unanswered leads will appear here.","check"))
  +'</section></div><div class="section-grid"><section class="card card-pad"><div class="card-title-row"><div><div class="card-title">Upcoming jobs</div><div class="card-sub">What is coming up on the schedule</div></div><button class="text-link" data-page="jobs">All jobs '+icon("arrow",14)+'</button></div>'
  +(upcoming.length?'<div class="mini-list">'+upcoming.slice(0,4).map(function(j){return '<div class="mini-row"><div>'+identity(j.name,j.service+' · '+dateFmt(j.date,{month:"short",day:"numeric"}))+'</div><div class="right-meta"><strong>'+dollars(j.amount)+'</strong><small>'+esc(j.status)+'</small></div></div>';}).join("")+'</div>':empty("No jobs scheduled","Add a job to see it here.","calendar"))
