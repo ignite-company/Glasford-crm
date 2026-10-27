@@ -149,7 +149,9 @@ function scheduleFor(day){
  return out.sort(function(a,b){return (a.time||"99:99").localeCompare(b.time||"99:99")||a.name.localeCompare(b.name);});
 }
 function scheduleRow(ev){
- return '<button class="simple-row schedule-row" data-'+(ev.kind==="job"?"job":"estimate")+'="'+esc(ev.id)+'"><span class="schedule-time">'+(ev.time?timeFmt(ev.time):"Any time")+'</span><span class="row-icon '+(ev.kind==="estimate"?"light":"")+'">'+icon(ev.kind==="estimate"?"file":"tree",20)+'</span><span class="row-copy"><strong>'+esc(ev.name)+'</strong><small>'+esc(ev.kind==="estimate"?"Estimate visit":"Job")+' · '+esc(ev.service)+'</small>'+(ev.address?'<small>'+esc(ev.address)+'</small>':"")+(ev.crew?'<small>Assigned: '+esc(ev.crew)+'</small>':"")+'</span>'+icon("chevron",18)+'</button>';
+ var details='<button class="simple-row schedule-row" data-'+(ev.kind==="job"?"job":"estimate")+'="'+esc(ev.id)+'"><span class="schedule-time">'+(ev.time?timeFmt(ev.time):"Any time")+'</span><span class="row-icon '+(ev.kind==="estimate"?"light":"")+'">'+icon(ev.kind==="estimate"?"file":"tree",20)+'</span><span class="row-copy"><strong>'+esc(ev.name)+'</strong><small>'+esc(ev.kind==="estimate"?"Estimate visit":"Job")+' · '+esc(ev.service)+'</small>'+(ev.address?'<small>'+esc(ev.address)+'</small>':"")+(ev.crew?'<small>Assigned: '+esc(ev.crew)+'</small>':"")+'</span>'+icon("chevron",18)+'</button>';
+ var action=ev.kind==="job"&&["Scheduled","In progress"].includes(ev.status)?'<button class="status-action" data-quick-job="'+esc(ev.id)+'">'+icon("check",16)+' '+(ev.status==="Scheduled"?"Start work":"Mark complete")+'</button>':"";
+ return '<div class="schedule-item">'+details+action+'</div>';
 }
 function calendar(){
  var chosen=ui.calendarDay||dayDate(0),base=new Date(chosen+"T12:00:00"),yr=base.getFullYear(),mo=base.getMonth();
@@ -287,6 +289,7 @@ function getForm(form){var obj={};new FormData(form).forEach(function(v,k){obj[k
 function download(name,text,type){var blob=new Blob([text],{type:type||"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(url);},2000);}
 document.addEventListener("click",function(ev){
  var e=ev.target,el=e.closest("[data-page]");if(el){ui.page=el.dataset.page;ui.mobile=false;ui.query="";ui.modal="";ui.datePrefill="";render();if(typeof window!=="undefined"&&window.scrollTo)window.scrollTo(0,0);return;}
+ el=e.closest("[data-quick-job]");if(el){var j=jobBy(el.dataset.quickJob);if(j){j.status=j.status==="Scheduled"?"In progress":j.status==="In progress"?"Completed":j.status;save();toast(j.status==="In progress"?"Work started":"Job marked complete");}return;}
  el=e.closest("[data-calendar-day]");if(el){ui.calendarDay=el.dataset.calendarDay;render();return;}
  el=e.closest("[data-calendar-shift]");if(el){var d=new Date(ui.calendarDay+"T12:00:00"),c=new Date(d.getFullYear(),d.getMonth()+Number(el.dataset.calendarShift),1);ui.calendarDay=c.getFullYear()+"-"+String(c.getMonth()+1).padStart(2,"0")+"-01";render();return;}
  if(e.closest("[data-calendar-today]")){ui.calendarDay=dayDate(0);render();return;}
