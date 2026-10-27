@@ -168,15 +168,25 @@ function calendar(){
  +'<div class="calendar-add"><button class="btn btn-primary" data-modal="job" data-prefill-date="'+chosen+'">'+icon("plus",17)+' Add job</button><button class="btn btn-soft" data-modal="estimate" data-prefill-date="'+chosen+'">'+icon("plus",17)+' Estimate visit</button></div></section></div>';
 }
 
+
 function leads(){
  var q=ui.query.toLowerCase();
  var list=db.leads.filter(function(l){return [l.name,l.phone,l.service,l.address,l.source].join(" ").toLowerCase().includes(q);});
- return header("Lead management","Every lead, clearly organized.","Drag a card into a new stage or use its stage selector. Open it to record a call or start follow-up.",btn('data-modal="lead"',icon("plus",15)+" Add lead","btn-primary"))
- +'<div class="toolbar"><div class="search-box">'+icon("search",17)+'<input data-search placeholder="Search name, service, phone..." value="'+esc(ui.query)+'" aria-label="Search leads"/></div><div class="toolbar-note">'+num(list.length)+' lead'+(list.length===1?"":"s")+' in view</div></div>'
- +'<div class="board-wrap"><div class="board">'+STAGES.map(function(stage){var group=list.filter(function(l){return l.stage===stage;});return '<div class="board-column" data-drop-stage="'+esc(stage)+'"><div class="column-head"><strong>'+esc(stage)+'</strong><span>'+group.length+'</span></div>'
- +(group.length?group.map(function(l){return '<article class="lead-tile" draggable="true" data-drag-id="'+esc(l.id)+'"><div class="tile-title"><button class="tile-click" data-lead="'+esc(l.id)+'">'+esc(l.name)+'</button>'+icon("chevron",14)+'</div><div class="tile-service">'+esc(l.service||"Tree service")+'<br>'+esc(l.address||"No property address")+'</div><div class="tile-bottom"><span class="tile-phone">'+esc(l.phone||"No phone")+'</span><span class="tile-age">'+dateFmt(l.created,{month:"short",day:"numeric"})+'</span></div><div style="margin-top:11px"><select class="tile-select" data-stage="'+esc(l.id)+'" aria-label="Move '+esc(l.name)+' to a new stage">'+STAGES.map(function(s){return '<option '+(s===l.stage?"selected":"")+'>'+esc(s)+'</option>';}).join("")+'</select></div></article>';}).join(""):'<div class="column-empty">Drop leads here<br>or move them from a card.</div>')
- +'</div>';}).join("")+'</div></div>';
+ var visible=ui.leadFilter==="All"?list:list.filter(l=>l.stage===ui.leadFilter);
+ var filter='<select class="filter lead-filter" data-lead-filter aria-label="Filter by stage">'+["All"].concat(STAGES).map(function(v){return '<option value="'+esc(v)+'" '+(ui.leadFilter===v?"selected":"")+'>'+(v==="All"?"All leads":esc(v))+'</option>';}).join("")+'</select>';
+ var board='<div class="board-wrap"><div class="board">'+STAGES.map(function(stage){
+  var group=list.filter(l=>l.stage===stage);
+  return '<div class="board-column" data-drop-stage="'+esc(stage)+'"><div class="column-head"><strong>'+esc(stage)+'</strong><span>'+group.length+'</span></div>'
+  +(group.length?group.map(function(l){return '<article class="lead-tile" draggable="true" data-drag-id="'+esc(l.id)+'"><div class="tile-title"><button class="tile-click" data-lead="'+esc(l.id)+'">'+esc(l.name)+'</button>'+icon("chevron",14)+'</div><div class="tile-service">'+esc(l.service||"Tree service")+'<br>'+esc(l.address||"Address not provided")+'</div><div class="tile-bottom"><span class="tile-phone">'+esc(l.phone||"No phone")+'</span><span class="tile-age">'+dateFmt(l.created,{month:"short",day:"numeric"})+'</span></div><div style="margin-top:11px"><select class="tile-select" data-stage="'+esc(l.id)+'" aria-label="Move '+esc(l.name)+' to a new stage">'+STAGES.map(function(st){return '<option '+(st===l.stage?"selected":"")+'>'+esc(st)+'</option>';}).join("")+'</select></div></article>';}).join(""):'<div class="column-empty">No leads in this stage.</div>')+'</div>';
+ }).join("")+'</div></div>';
+ var mobile='<div class="mobile-lead-list">'+(visible.length?visible.map(function(l){
+  return '<article class="mobile-lead-card"><button class="mobile-lead-main" data-lead="'+esc(l.id)+'">'+identity(l.name,l.service||"Tree service")+'<span class="mobile-lead-arrow">'+icon("chevron",19)+'</span></button><div class="mobile-lead-bottom"><span>'+esc(l.phone||"Phone not provided")+'</span><select class="tile-select" data-stage="'+esc(l.id)+'" aria-label="Stage for '+esc(l.name)+'">'+STAGES.map(function(st){return '<option '+(st===l.stage?"selected":"")+'>'+esc(st)+'</option>';}).join("")+'</select></div></article>';
+ }).join(""):empty("No matching leads","Change the filter or add a customer inquiry.","users"))+'</div>';
+ return header("CUSTOMERS","Your leads.","Every inquiry in one place. Tap a name for details or change its stage to move it forward.",btn('data-modal="lead"',icon("plus",17)+" Add lead","btn-primary"))
+ +'<div class="toolbar"><div class="search-box">'+icon("search",18)+'<input data-search placeholder="Search name, phone, service..." value="'+esc(ui.query)+'" aria-label="Search leads"/></div><div class="toolbar-right">'+filter+'</div></div>'
+ +board+mobile;
 }
+
 function followups(){
  var due=tasks().filter(function(t){return t.due<=dayDate(0);}),future=tasks().filter(function(t){return t.due>dayDate(0);});
  return header("Customer retention","A follow-up system that never forgets.","When a lead doesn't answer, start the timeline. Each step becomes a trackable outreach task.",btn('data-modal="lead"',icon("plus",15)+" Add lead","btn-primary"))
@@ -303,6 +313,7 @@ document.addEventListener("click",function(ev){
 document.addEventListener("change",function(ev){
  var el=ev.target;if(el.matches("[data-stage]")){var l=leadBy(el.dataset.stage);if(l)setStage(l,el.value);return;}
  if(el.matches("[data-search]")){ui.query=el.value;render();return;}
+ if(el.matches("[data-lead-filter]")){ui.leadFilter=el.value;render();return;}
  if(el.id==="json-file"&&el.files[0]){var reader=new FileReader();reader.onload=function(){try{var imported=JSON.parse(reader.result);if(!imported||!Array.isArray(imported.leads)||!Array.isArray(imported.jobs)||!Array.isArray(imported.estimates)||!Array.isArray(imported.payments))throw Error("Invalid backup structure");if(confirm("Replace all current browser data with this backup?")){db=imported;save();toast("Backup restored");}}catch(err){toast("Could not read this backup JSON");}};reader.readAsText(el.files[0]);}
 });
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&ui.modal){ui.modal="";render();}if(e.key==="Enter"&&e.target.matches("[data-search]")){ui.query=e.target.value;render();}});
