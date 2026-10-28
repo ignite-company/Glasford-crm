@@ -1,6 +1,6 @@
-// Public client configuration only. Fill after provisioning a dedicated Glasford Supabase project.
-// Never put a service_role / secret key in this file.
+// Public browser configuration for the temporary Ignite-hosted Glasford workspace.
+// Publishable key only. NEVER use Supabase service_role or secret keys in browser code.
 window.GLASFORD_SUPABASE_CONFIG = {
-  url: "",
-  publishableKey: ""
+  url: "https://ujvuqbgheewbyvfusqvz.supabase.co",
+  publishableKey: "sb_publishable_8KHlNu2WyrvkgYF_Vm-jYQ_EsOFrzaO"
 };
