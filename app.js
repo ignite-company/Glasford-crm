@@ -84,7 +84,7 @@ function load(){try{var saved=JSON.parse(localStorage.getItem(STORE));if(saved&&
  }}catch(e){}return newDemo();}
 var db=load();
 var ui={page:"home",query:"",modal:"",id:"",mobile:false,leadFilter:"All",calendarDay:dayDate(0),datePrefill:""};
-function save(){localStorage.setItem(STORE,JSON.stringify(db));render();}
+function save(){if(window.GLASFORD_CLOUD){window.GLASFORD_CLOUD.queueSave(db);}else{localStorage.setItem(STORE,JSON.stringify(db));}render();}
 function leadBy(id){return db.leads.find(function(l){return l.id===id;});}
 function jobBy(id){return db.jobs.find(function(j){return j.id===id;});}
 function paid(jobId){return db.payments.filter(function(p){return p.jobId===jobId;}).reduce(function(s,p){return s+Number(p.amount||0);},0);}
@@ -113,7 +113,7 @@ function shell(content){
  +navItem("followups","Follow-ups","clock",due)+navItem("estimates","Estimates","file")+navItem("jobs","Jobs","clipboard")
  +'</nav></div>'+modal();
 }
-function notice(){return '<div class="preview-notice"><div>'+icon("leaf",16)+' &nbsp;<strong>'+(db.demo?"Sample workspace":"Local preview")+'.</strong> '+(db.demo?"This workspace contains fictional example records. Clear them before adding real customer information. ":"")+'Entries are saved in this browser only. Automated calls and texts are not connected.</div>'+(db.demo?'<button data-clear-demo>Clear workspace</button>':'<button data-page="settings">Backup / import data</button>')+'</div>';}
+function notice(){if(window.GLASFORD_CLOUD){return '<div class="preview-notice"><div>'+icon("leaf",16)+' &nbsp;<strong>Secure shared workspace.</strong> Records sync across signed-in devices. Automated calls and texts are not connected.</div><button data-page="settings">Backup / import data</button></div>';}return '<div class="preview-notice"><div>'+icon("leaf",16)+' &nbsp;<strong>'+(db.demo?"Sample workspace":"Local preview")+'.</strong> '+(db.demo?"This workspace contains fictional example records. Clear them before adding real customer information. ":"")+'Entries are saved in this browser only. Automated calls and texts are not connected.</div>'+(db.demo?'<button data-clear-demo>Clear workspace</button>':'<button data-page="settings">Backup / import data</button>')+'</div>';}
 function header(eyebrow,title,desc,actions){return '<div class="intro"><div><div class="eyebrow">'+esc(eyebrow)+'</div><h1>'+esc(title)+'</h1><p>'+esc(desc)+'</p></div><div class="actions">'+(actions||"")+'</div></div>';}
 function metric(label,value,foot,ic){return '<div class="metric"><div class="metric-top"><div class="metric-label">'+label+'</div><div class="metric-icon">'+icon(ic,19)+'</div></div><div class="metric-value">'+value+'</div><div class="metric-foot">'+foot+'</div></div>';}
 function identity(name,detail){return '<div class="identity"><div class="lead-avatar">'+esc(initials(name))+'</div><div style="min-width:0"><div class="identity-main">'+esc(name)+'</div><div class="identity-sub">'+esc(detail||"")+'</div></div></div>';}
@@ -226,10 +226,10 @@ function jobs(){
  +'</section>';
 }
 function settings(){
- return header("Administration","Your workspace settings.","Export a backup and restore it later on another device.","")
- +'<section class="card settings-box"><h3>Local preview storage</h3><p>The current version saves to this browser, not a shared database. It is suitable for reviewing the workflow, but should not be used as the live team CRM until authentication, shared data storage, and sending integrations are set up.</p><div class="actions">'+btn("data-export",icon("download",15)+" Export full backup","btn-primary")+btn("data-export-csv",icon("download",15)+" Export leads CSV","")+'</div></section>'
- +'<section class="card settings-box"><h3>Restore a backup</h3><p>Import a JSON backup you previously exported from this workspace. This replaces the data currently in this browser.</p><div class="field"><label for="json-file">Select backup JSON</label><input type="file" id="json-file" accept=".json,application/json" style="max-width:340px"/></div></section>'
- +'<section class="card settings-box"><h3>Start with an empty workspace</h3><p>Remove all demo records. This cannot be undone unless you exported a backup.</p>'+btn("data-clear-demo",icon("refresh",15)+" Clear workspace","btn-danger")+'</section>';
+ return header("Administration","Your workspace settings.","Export a backup and restore it when needed.","")
+ +'<section class="card settings-box"><h3>'+(window.GLASFORD_CLOUD?"Cloud workspace":"Local preview storage")+'</h3><p>'+(window.GLASFORD_CLOUD?"Your records are saved in your shared Glasford cloud workspace and available from signed-in devices. Automatic calling and texting are not connected.":"This preview saves in your browser only. Do not use it for sensitive client records until secure cloud access is configured.")+'</p><div class="actions">'+btn("data-export",icon("download",15)+" Export full backup","btn-primary")+btn("data-export-csv",icon("download",15)+" Export leads CSV","")+'</div></section>'
+ +'<section class="card settings-box"><h3>Restore a backup</h3><p>Import a previously exported JSON backup. This replaces the '+(window.GLASFORD_CLOUD?"shared workspace on every signed-in device":"data in this browser")+'.</p><div class="field"><label for="json-file">Select backup JSON</label><input type="file" id="json-file" accept=".json,application/json" style="max-width:340px"/></div></section>'
+ +(window.GLASFORD_CLOUD?'<section class="card settings-box"><h3>Change your password</h3><p>Use a new password with at least 12 characters.</p><form id="glasford-password-form"><div class="field"><label for="new-glasford-password">New password</label><input type="password" id="new-glasford-password" name="newPassword" autocomplete="new-password" minlength="12" required style="width:min(100%,340px)"/></div><button class="btn btn-primary" type="submit" style="margin-top:12px">Update password</button></form></section>':'<section class="card settings-box"><h3>Start with an empty workspace</h3><p>Remove all demo records. This cannot be undone unless you exported a backup.</p>'+btn("data-clear-demo",icon("refresh",15)+" Clear workspace","btn-danger")+'</section>');
 }
 function input(name,label,value,type,opts){return '<div class="field '+(opts&&opts.wide?"wide":"")+'"><label for="fld-'+name+'">'+esc(label)+'</label><input id="fld-'+name+'" name="'+name+'" class="'+(type==="date"||type==="time"?"native-date-input":"")+'" type="'+(type||"text")+'" value="'+esc(value||"")+'" '+(opts&&opts.required?"required":"")+' '+(opts&&opts.min!=null?'min="'+opts.min+'"':"")+' placeholder="'+esc(opts&&opts.placeholder||"")+'"/></div>';}
 function pick(name,label,value,options,wide){return '<div class="field '+(wide?"wide":"")+'"><label for="fld-'+name+'">'+esc(label)+'</label><select name="'+name+'" id="fld-'+name+'">'+options.map(function(o){var v=typeof o==="string"?o:o[0],l=typeof o==="string"?o:o[1];return '<option value="'+esc(v)+'" '+(String(v)===String(value)?"selected":"")+'>'+esc(l)+'</option>';}).join("")+'</select></div>';}
@@ -279,7 +279,7 @@ function modal(){
 }
 function render(){
  var html={home:home,leads:leads,calendar:calendar,followups:followups,estimates:estimates,jobs:jobs,settings:settings};
- document.getElementById("app").innerHTML=shell((html[ui.page]||home)());
+ document.getElementById("app").innerHTML=shell((html[ui.page]||home)());if(window.GLASFORD_CLOUD)document.querySelector('.topbar').insertAdjacentHTML('beforeend','<button type="button" class="crm-signout" data-signout>Sign out</button>');
  document.body.style.overflow=ui.modal?"hidden":"";
 }
 function toast(s){var div=document.createElement("div");div.className="toast-item";div.textContent=s;document.getElementById("toast").appendChild(div);setTimeout(function(){div.remove();},3500);}
@@ -288,7 +288,7 @@ function contact(l,outcome){if(outcome==="noanswer"){l.stage="Follow-up";if(!l.f
 function getForm(form){var obj={};new FormData(form).forEach(function(v,k){obj[k]=String(v).trim();});return obj;}
 function download(name,text,type){var blob=new Blob([text],{type:type||"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(url);},2000);}
 document.addEventListener("click",function(ev){
- var e=ev.target,el=e.closest("[data-page]");if(el){ui.page=el.dataset.page;ui.mobile=false;ui.query="";ui.modal="";ui.datePrefill="";render();if(typeof window!=="undefined"&&window.scrollTo)window.scrollTo(0,0);return;}
+ var e=ev.target;if(e.closest('[data-signout]')&&window.GLASFORD_CLOUD){window.GLASFORD_CLOUD.signOut();return;}var el=e.closest("[data-page]");if(el){ui.page=el.dataset.page;ui.mobile=false;ui.query="";ui.modal="";ui.datePrefill="";render();if(typeof window!=="undefined"&&window.scrollTo)window.scrollTo(0,0);return;}
  el=e.closest("[data-quick-job]");if(el){var j=jobBy(el.dataset.quickJob);if(j){j.status=j.status==="Scheduled"?"In progress":j.status==="In progress"?"Completed":j.status;save();toast(j.status==="In progress"?"Work started":"Job marked complete");}return;}
  el=e.closest("[data-calendar-day]");if(el){ui.calendarDay=el.dataset.calendarDay;render();return;}
  el=e.closest("[data-calendar-shift]");if(el){var d=new Date(ui.calendarDay+"T12:00:00"),c=new Date(d.getFullYear(),d.getMonth()+Number(el.dataset.calendarShift),1);ui.calendarDay=c.getFullYear()+"-"+String(c.getMonth()+1).padStart(2,"0")+"-01";render();return;}
@@ -321,7 +321,7 @@ document.addEventListener("change",function(ev){
 });
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&ui.modal){ui.modal="";render();}if(e.key==="Enter"&&e.target.matches("[data-search]")){ui.query=e.target.value;render();}});
 document.addEventListener("submit",function(ev){
- var form=ev.target;if(!["lead-form","estimate-form","job-form","payment-form"].includes(form.id))return;ev.preventDefault();var v=getForm(form);
+ var form=ev.target;if(form.id==="glasford-password-form"&&window.GLASFORD_CLOUD){ev.preventDefault();var pw=form.elements.newPassword.value;window.GLASFORD_CLOUD.changePassword(pw).then(function(){form.reset();toast("Password updated");}).catch(function(err){toast(err.message||"Could not update password");});return;}if(!["lead-form","estimate-form","job-form","payment-form"].includes(form.id))return;ev.preventDefault();var v=getForm(form);
  if(form.id==="lead-form"){
   if(!v.name){toast("Please enter a customer name");return;}
   var l=leadBy(ui.id);
@@ -365,5 +365,5 @@ document.addEventListener("dragover",function(e){var target=e.target.closest("[d
 document.addEventListener("dragleave",function(e){var target=e.target.closest("[data-drop-stage]");if(target&&!target.contains(e.relatedTarget))target.classList.remove("drag-over");});
 document.addEventListener("drop",function(e){var target=e.target.closest("[data-drop-stage]");if(target){e.preventDefault();var id=e.dataTransfer.getData("text/plain"),l=leadBy(id);if(l)setStage(l,target.dataset.dropStage);}});
 document.addEventListener("dragend",function(){document.querySelectorAll(".drag-over").forEach(function(el){el.classList.remove("drag-over");});});
-render();
+if(window.GLASFORD_CLOUD){window.GLASFORD_CLOUD.mount({onData:function(snapshot){db=snapshot;ui.modal='';render();}});}else{render();}
 })();
