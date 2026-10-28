@@ -15,14 +15,27 @@ The working CRM has cloud sign-in and snapshot synchronization staged on GitHub 
 - The browser uses the **publishable** key (not a secret). All personal CRM data must be protected by the database RLS and not hidden only by the frontend.
 - Record changes sync through Supabase Realtime and refresh-on-focus. Simultaneous conflicting saves are rejected using a workspace revision.
 
-## Steps required BEFORE production
+## Activation: email/password without SMTP
 
-1. **Configure Supabase Auth redirect URLs** under the Ignite Supabase project Authentication settings: add `https://glasford-crm.vercel.app/**` and keep existing Ignite redirect URLs intact. Set any needed SMTP sender settings without disrupting existing Ignite user logins.
-2. **Configure production email delivery** for the Supabase project if not already configured (custom SMTP is necessary for reliably sending email sign-in links to outside clients).
-3. Confirm the Glasford customer can receive an email magic link and reach the CRM with a valid session. Verify an unrelated email cannot see or edit records.
-4. Test mobile lead creation, estimates, jobs, payments, follow-ups, persistence on two devices, changing records and conflict warning. Check all current Ignite apps remain functional.
-5. Vercel currently has team SSO protection enabled on the Glasford project. Ensure client access to the **application's own authentication screen** without granting project-level Vercel access, only once app login security is functioning.
-6. Merge the PR and deploy production after all checks. Do not expose a broken or bypassable login to a client.
+Email/password authentication is already active on Ignite's Supabase project. There is no requirement for an outgoing SMTP setup or magic-link redirect for this temporary login method.
+
+1. In the Ignite Supabase Dashboard, open **Authentication > Users > Add user**.
+2. Select **Create new user** rather than **Send invite**. Use the verified Glasford customer email, set a random temporary password, and mark the email as confirmed if the form asks. Do not place the password in source control or chat history.
+3. Share the one-time temporary password directly via a private channel. The customer signs in at `https://glasford-crm.vercel.app` and changes their password immediately using the CRM **Settings > Change your password** form.
+4. Confirm the customer can see an empty workspace, add a lead on phone, see it on desktop, and update a job.
+5. Verify an unrelated email account cannot access `glasford_workspace`. Do not add the customer to the Supabase project organization or Vercel team.
+6. Update **Vercel Deployment Protection** from all to preview-only *after* the authenticated login page is deployed and verified. The CRM's own Supabase auth and RLS are the customer security layer.
+7. Confirm Ignite's other CRM and client apps remain functional. The existing contact@ignitellc.co admin user is allowlisted for Glasford, and may use its current Supabase password.
+
+If the customer forgets the password before SMTP is set up, the Supabase admin can reset it in the dashboard. Do not disable email confirmations for the entire shared Ignite project.
+
+## Status
+
+- Glasford isolated database schema and workspace: created.
+- Approved-user allowlist: created.
+- Mobile login and shared-record code: staged on GitHub.
+- Production deployment: pending (do not claim that an untested user account was created).
+- Customer Auth user: still needs to be created through Supabase Dashboard.
 
 ## After the client's final payment
 
