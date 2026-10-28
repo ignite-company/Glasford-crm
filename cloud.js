@@ -30,28 +30,29 @@
     app.innerHTML = '<div class="auth-wrap"><div class="auth-panel">' +
       '<img class="auth-logo" src="https://assets.cdn.filesafe.space/bF1dT8IAVuvat84LkAVe/media/6ae0bab4c62ddbd638d94b5b.png" alt="Glasford Tree Trimming" />' +
       '<div class="auth-overline">GLASFORD TREE TRIMMING</div><h1>Command Center</h1>' +
-      '<p>Secure access to your leads, jobs, estimates, calendar and follow-ups.</p>' +
+      '<p>Log in to manage leads, jobs, estimates and payments from your phone or computer.</p>' +
       '<form id="glasford-login-form"><label for="glasford-login-email">Email address</label>' +
-      '<input id="glasford-login-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required />' +
-      '<button class="btn btn-primary" id="glasford-login-button" type="submit">Email me a sign-in link</button></form>' +
-      '<div class="auth-help">We will email you a secure, one-time sign-in link. Open it on the device you want to use.</div>' +
+      '<input id="glasford-login-email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="Email address" required />' +
+      '<label for="glasford-login-password">Password</label>' +
+      '<input id="glasford-login-password" name="password" type="password" autocomplete="current-password" placeholder="Your password" required />' +
+      '<button class="btn btn-primary" id="glasford-login-button" type="submit">Log in</button></form>' +
+      '<div class="auth-help">Your account is provided by Ignite Co. If you need help accessing it, contact Ignite Co. directly.</div>' +
       (message ? '<div class="auth-message' + (isError ? ' auth-error' : '') + '" role="status">' + safe(message) + '</div>' : '') +
       '</div></div>';
     document.getElementById("glasford-login-form").addEventListener("submit", async function (e) {
       e.preventDefault();
       var email = document.getElementById("glasford-login-email").value.trim().toLowerCase();
+      var password = document.getElementById("glasford-login-password").value;
       var button = document.getElementById("glasford-login-button");
       button.disabled = true;
-      button.textContent = "Sending link...";
+      button.textContent = "Signing in...";
       try {
-        var r = await client.auth.signInWithOtp({
-          email: email,
-          options: { emailRedirectTo: window.location.origin + "/", shouldCreateUser: true }
-        });
+        var r = await client.auth.signInWithPassword({email: email, password: password});
         if (r.error) throw r.error;
-        authScreen("If this email is authorized, a sign-in link is on its way. Check your inbox.");
+        currentUser = r.data.user;
+        await loadWorkspace();
       } catch (err) {
-        authScreen("Couldn't send the link: " + (err.message || "Please retry."), true);
+        authScreen("Unable to sign in. Check your account details or contact Ignite Co.", true);
       }
     });
   }
@@ -131,6 +132,12 @@
       activeWrites--;
     });
   }
+  async function changePassword(nextPassword) {
+    if (!ready || !currentUser) throw Error("Please sign in before changing your password.");
+    if (!nextPassword || nextPassword.length < 12) throw Error("Use at least 12 characters for your new password.");
+    var updated = await client.auth.updateUser({ password: nextPassword });
+    if (updated.error) throw updated.error;
+  }
   async function signOut() {
     blocked = true;
     ready = false;
@@ -172,7 +179,7 @@
     setInterval(function () { checkForUpdates().catch(function () {}); }, 30000);
   }
   window.GLASFORD_CLOUD = {
-    mount: mount, queueSave: queueSave, signOut: signOut,
+    mount: mount, queueSave: queueSave, signOut: signOut, changePassword: changePassword,
     get ready() { return ready; },
     get email() { return currentUser ? currentUser.email : ""; }
   };
